@@ -1,21 +1,23 @@
 clear all; close all; clc
+%% Material data
+% units without prefix
 E_L = 181*10^9;
 E_T = 10.3*10^9;
 v_LT = 0.28;
 v_TL = v_LT*E_T/E_L;
 G_LT = 7.17*10^9;
-G_TT = 3.5*10^9;
-alpha_L = 1*10^-6;
-alpha_T = 50*10^-6;
 
-theta = [0,pi/2, 0, pi/2, pi/2, 0, pi/2, 0];
+%% Question specific data
+theta = [0,pi/2, 0, pi/2, pi/2, 0, pi/2, 0]; % [rad]
 p0 = -2*10^3; % [Pa]
 a = 0.6;
 b = 0.5;
 h = 1*10^-3;
 t = h/8;
-honey_t = t*0; % honeycomb thickness
+honey_t = t*5.006; % honeycomb thickness 5.006 for steel displacement, 0 for no honeycomb
 h_tot = h + honey_t;
+
+%% Determine z values for plies
 height(1,1) = h_tot/2;
 height(2,1) = height(1,1) - t;
 for i = 2:length(theta)+1
@@ -34,7 +36,7 @@ for i = 1:length(theta)
 end
 for i = 1:length(theta)+1
     if i == 5
-        % honeycomb bending stiffnes not included
+        % honeycomb bending stiffness not included
         Q_bar_new{i} = zeros(3,3); 
     elseif i > 5
         Q_bar_new{i} = Q_bar{i-1};
@@ -43,10 +45,11 @@ for i = 1:length(theta)+1
     end
 end
 
-%% Caluculate laminate specific data
+%% Calculate laminate specific data
 [A,B,D] = lamina_func(height,Q_bar_new);
 
 %% Fourier analysis
+% n_max = m_max = 10 gives adequate convergence
 m_max = 10;
 n_max = 10;
 
@@ -62,9 +65,22 @@ for m = 1:m_max
     end
 end
 
-disp("Displacemnt of middle point: " + w_xy*10^3 + " [mm]")
+disp("Displacement of middle point: " + w_xy*10^3 + " [mm]")
 disp("Thickness of honeycomb section: " + honey_t*10^3 + " [mm]")
 disp("Thickness of single ply: " + h/8*10^3 + " [mm]")
+
+%% Weight calculation 
+density_laminate = 1500;
+density_honeycomb = 80;
+density_steel = 7850;
+volume_steel = 0.6*0.5*1*10^-3;
+volume_laminate = volume_steel;
+volume_honeycomb = honey_t*0.6*0.5;
+mass_honey_struct = volume_honeycomb*density_honeycomb + volume_laminate*density_laminate;
+mass_steel_struct = volume_steel*density_steel;
+
+disp("Mass steel structure: " + mass_steel_struct + " [Kg]")
+disp("Mass honeycomb structure: " + mass_honey_struct + " [Kg]")
 
 %% draw cross section
 figure
@@ -77,14 +93,16 @@ for i = 1:length(height)
     else
         colour = 'g';
     end
-    fill([0,0,1,1], [height(:,i); flip(height(:,i))],colour)
+    fill([0,0,600,600], [height(:,i)*10^3; flip(height(:,i))*10^3],colour)
 end
+xlabel("x [mm]")
+ylabel("z [mm]")
+legend("0^0","90^0","0^0","90^0","honeycomb")
+title("Schematic of honeycomb structure")
 
-
-
-
+%% Functions from assignment 1
 function[T_1,T_2,Q_bar] = matrix_func(theta, E_L, E_T, v_LT,v_TL,G_LT)
-%% calculates ply matrixes from material data in LT system
+%% calculates ply matrices from material data in LT system
 % input: angle [rad], E_L, E_T, G_LT [Pa]
 % output: T_1,T_2,Q_bar
 T_1 = [cos(theta)^2, sin(theta)^2, 2*sin(theta)*cos(theta);
@@ -101,7 +119,7 @@ Q_bar = inv(T_1)*Q*T_2;
 end
 
 function[A,B,D] = lamina_func(height,Q_bar)
-%% calculate laminate specific matrixes A,B,D
+%% calculate laminate specific matrices A,B,D
 A = zeros(3,3);
 B = zeros(3,3);
 D = zeros(3,3);
